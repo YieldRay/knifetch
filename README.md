@@ -1,13 +1,13 @@
-# packageName
+# knifetch
 
 <!-- automd:badges color=yellow -->
 
-[![npm version](https://img.shields.io/npm/v/packageName?color=yellow)](https://npmjs.com/package/packageName)
-[![npm downloads](https://img.shields.io/npm/dm/packageName?color=yellow)](https://npmjs.com/package/packageName)
+[![npm version](https://img.shields.io/npm/v/knifetch?color=yellow)](https://npmjs.com/package/knifetch)
+[![npm downloads](https://img.shields.io/npm/dm/knifetch?color=yellow)](https://npm.chart.dev/knifetch)
 
 <!-- /automd -->
 
-This is my package description.
+knifetch is a customized fetch function with enhanced features.
 
 ## Usage
 
@@ -17,43 +17,46 @@ Install package:
 
 ```sh
 # ✨ Auto-detect
-npx nypm install packageName
+npx nypm install knifetch
 
 # npm
-npm install packageName
+npm install knifetch
 
 # yarn
-yarn add packageName
+yarn add knifetch
 
 # pnpm
-pnpm install packageName
+pnpm install knifetch
 
 # bun
-bun install packageName
+bun install knifetch
+
+# deno
+deno install knifetch
 ```
 
 <!-- /automd -->
 
 Import:
 
-<!-- automd:jsimport cjs cdn name="pkg" -->
+<!-- automd:jsimport cjs cdn name="knifetch" -->
 
-**ESM** (Node.js, Bun)
+**ESM** (Node.js, Bun, Deno)
 
 ```js
-import {} from "pkg";
+import {} from "knifetch";
 ```
 
 **CommonJS** (Legacy Node.js)
 
 ```js
-const {} = require("pkg");
+const {} = require("knifetch");
 ```
 
 **CDN** (Deno, Bun and Browsers)
 
 ```js
-import {} from "https://esm.sh/pkg";
+import {} from "https://esm.sh/knifetch";
 ```
 
 <!-- /automd -->
@@ -76,11 +79,11 @@ import {} from "https://esm.sh/pkg";
 
 <!-- automd:contributors license=MIT -->
 
-Published under the [MIT](https://github.com/unjs/packageName/blob/main/LICENSE) license.
-Made by [community](https://github.com/unjs/packageName/graphs/contributors) 💛
+Published under the [MIT](https://github.com/YieldRay/knifetch/blob/main/LICENSE) license.
+Made by [community](https://github.com/YieldRay/knifetch/graphs/contributors) 💛
 <br><br>
-<a href="https://github.com/unjs/packageName/graphs/contributors">
-<img src="https://contrib.rocks/image?repo=unjs/packageName" />
+<a href="https://github.com/YieldRay/knifetch/graphs/contributors">
+<img src="https://contrib.rocks/image?repo=YieldRay/knifetch" />
 </a>
 
 <!-- /automd -->

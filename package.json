@@ -1,8 +1,8 @@
 {
-  "name": "packageName",
+  "name": "knifetch",
   "version": "0.0.0",
   "description": "",
-  "repository": "unjs/packageName",
+  "repository": "YieldRay/knifetch",
   "license": "MIT",
   "sideEffects": false,
   "type": "module",
@@ -31,17 +31,20 @@
     "test:types": "tsc --noEmit --skipLibCheck"
   },
   "devDependencies": {
-    "@types/node": "^22.1.0",
-    "@vitest/coverage-v8": "^2.0.5",
-    "automd": "^0.3.8",
-    "changelogen": "^0.5.5",
-    "eslint": "^9.8.0",
-    "eslint-config-unjs": "^0.3.2",
-    "jiti": "^2.0.0-beta.3",
+    "@types/node": "^22.7.4",
+    "@vitest/coverage-v8": "^2.1.2",
+    "automd": "^0.3.10",
+    "changelogen": "^0.5.7",
+    "eslint": "^9.11.1",
+    "eslint-config-unjs": "^0.4.1",
+    "jiti": "^2.1.2",
     "prettier": "^3.3.3",
-    "typescript": "^5.5.4",
-    "unbuild": "^3.0.0-rc.7",
-    "vitest": "^2.0.5"
+    "typescript": "^5.6.2",
+    "unbuild": "^3.0.0-rc.8",
+    "vitest": "^2.1.2"
   },
-  "packageManager": "pnpm@9.7.0"
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
+  },
+  "packageManager": "pnpm@9.12.0"
 }
