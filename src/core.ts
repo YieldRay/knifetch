@@ -221,4 +221,4 @@ export function createKnifetch<T = Response>(options?: KnifetchOptions<T>) {
   };
 }
 
-export const knifetch = createKnifetch();
+export const knifetch = /*#__PURE__*/ createKnifetch();

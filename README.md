@@ -39,24 +39,24 @@ deno install knifetch
 
 Import:
 
-<!-- automd:jsimport cjs cdn name="knifetch" -->
+<!-- automd:jsimport cjs cdn name="knifetch" imports="knifetch,createKnifetch" -->
 
 **ESM** (Node.js, Bun, Deno)
 
 ```js
-import {} from "knifetch";
+import { knifetch, createKnifetch } from "knifetch";
 ```
 
 **CommonJS** (Legacy Node.js)
 
 ```js
-const {} = require("knifetch");
+const { knifetch, createKnifetch } = require("knifetch");
 ```
 
 **CDN** (Deno, Bun and Browsers)
 
 ```js
-import {} from "https://esm.sh/knifetch";
+import { knifetch, createKnifetch } from "https://esm.sh/knifetch";
 ```
 
 <!-- /automd -->
