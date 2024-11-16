@@ -1,7 +1,7 @@
 import { Cookie, cookieToString, getSetCookies } from "./cookie";
 
 export const isBrowser =
-  typeof window !== "undefined" && window.document !== undefined;
+  typeof globalThis !== "undefined" && globalThis.document !== undefined;
 
 /**
  * This class is for server-side only
