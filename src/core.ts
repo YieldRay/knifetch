@@ -5,33 +5,43 @@ import type { Awaitable, Nullable } from "./types";
 export type Fetch = typeof fetch;
 
 /**
- * A type that can be convert to string if is not string
+ * Represents a value that can be converted to a string.
  */
 type TString = string | number;
 
 /**
- * Extends the built-in RequestInit interface with additional options.
+ * Extended RequestInit interface with additional request configuration options.
  */
-interface KRequestInit extends RequestInit {
+export interface KRequestInit extends RequestInit {
   /**
-   * Append query parameters to the URL, null and undefined value will be ignored
+   * Query parameters to append to the URL.
+   * Null and undefined values are ignored.
    */
   query?: Record<string, Nullable<TString>>;
+
   /**
-   * JSON body, sets Content-Type to 'application/json'.
-   * @note this is intend for sending object or array, should NOT use other primitive value
+   * JSON payload for the request body.
+   * Sets Content-Type to 'application/json'.
+   * Intended for objects and arrays only.
    */
   json?: Record<PropertyKey, unknown> | Array<unknown>;
+
   /**
-   * FormData body, sets Content-Type to 'multipart/form-data'. If an object is provided, null and undefined values will be ignored.
+   * FormData payload for the request body.
+   * Sets Content-Type to 'multipart/form-data'.
+   * Null and undefined values are ignored when using object format.
    */
   formData?: FormData | Record<string, Nullable<TString | Blob>>;
+
   /**
-   * URLSearchParams body, sets Content-Type to 'application/x-www-form-urlencoded'. If an object is provided, null and undefined values will be ignored.
+   * URLSearchParams payload for the request body.
+   * Sets Content-Type to 'application/x-www-form-urlencoded'.
+   * Null and undefined values are ignored when using object format.
    */
   form?: URLSearchParams | Record<string, Nullable<TString>>;
+
   /**
-   * Set to true to enable automatic retry
+   * Retry configuration for failed requests.
    */
   retry?:
     | boolean
@@ -40,27 +50,32 @@ interface KRequestInit extends RequestInit {
 }
 
 /**
- * Options for the createKnifetch function.
+ * Configuration options for creating a Knifetch instance.
  */
-interface KnifetchOptions<T> {
+export interface KnifetchOptions<T> {
   /**
-   * The fetch function to use. Defaults to globalThis.fetch.
+   * Custom fetch implementation. Defaults to globalThis.fetch.
    */
   fetch?: Fetch;
+
   /**
-   * Base URL to prepend to all requests. Only works if you pass string as request url (rather than URL/Request object).
+   * Base URL prefix for all requests.
+   * Only applies when request URL is provided as a string.
    */
   baseURL?: string;
+
   /**
-   * Cookie jar to use for managing cookies.
+   * Cookie jar instance or boolean to enable cookie management.
    */
   cookieJar?: boolean | CookieJar;
+
   /**
-   * Interceptor function called before each request.
+   * Pre-request interceptor function.
    */
   onRequest?({ request }: { request: Request }): Awaitable<Request | void>;
+
   /**
-   * Interceptor function called after each response.
+   * Post-response interceptor function.
    */
   onResponse?({
     request,
@@ -69,9 +84,10 @@ interface KnifetchOptions<T> {
     request: Request;
     response: Response;
   }): Awaitable<Response | void>;
+
   /**
-   * Error handler function called when a fetch request fails.
-   * @note if returns a Response, it will also trigger `onResponse`
+   * Error handler for failed fetch requests.
+   * Returning a Response will trigger onResponse interceptor.
    */
   onFetchError?({
     request,
@@ -80,15 +96,17 @@ interface KnifetchOptions<T> {
     request: Request;
     error: unknown;
   }): Awaitable<Response | void>;
+
   /**
-   * Function to transform the response before returning it.
+   * Response transformation function.
    */
   transformResponse?(response: Response): Awaitable<T>;
 }
 
 /**
- * Creates a custom fetch function with enhanced features.
- * @returns A custom fetch function.
+ * Creates a customized fetch function with enhanced features and middleware support.
+ * @param options - Configuration options for the fetch instance
+ * @returns Enhanced fetch function
  */
 export function createKnifetch<T = Response>(options?: KnifetchOptions<T>) {
   const fetch = options?.fetch || globalThis.fetch;
