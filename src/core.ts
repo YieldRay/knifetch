@@ -201,8 +201,11 @@ export function createKnifetch<T = Response>(options?: KnifetchOptions<T>) {
 
     const action = async (): Promise<T> => {
       // call onRequest interceptor
+      const onRequestResult: Nullable<Request> = await options?.onRequest?.({
+        request: request$,
+      });
       const request =
-        (await options?.onRequest?.({ request: request$ })) || request$;
+        onRequestResult instanceof Request ? onRequestResult : request$;
 
       let response: Response | void;
       try {
@@ -210,13 +213,24 @@ export function createKnifetch<T = Response>(options?: KnifetchOptions<T>) {
         response = await fetch(request);
       } catch (error) {
         // handle fetch errors with onFetchError interceptor
-        response = await options?.onFetchError?.({ request, error });
-        if (!response) throw error;
+        const onFetchErrorResult: Nullable<Response> =
+          await options?.onFetchError?.({ request, error });
+        if (onFetchErrorResult instanceof Response) {
+          // if onFetchError returns a Response, use it as the final response
+          response = onFetchErrorResult;
+        } else {
+          // otherwise, error is considered not handled, rethrow the error
+          throw error;
+        }
       }
 
       // call onResponse interceptor
+      const onResponseResult: Nullable<Response> = await options?.onResponse?.({
+        request,
+        response,
+      });
       response =
-        (await options?.onResponse?.({ request, response })) || response;
+        onResponseResult instanceof Response ? onResponseResult : response;
 
       // transform the response if needed
       return options?.transformResponse
