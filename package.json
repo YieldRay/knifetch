@@ -31,20 +31,20 @@
     "test:types": "tsc --noEmit --skipLibCheck"
   },
   "devDependencies": {
-    "@types/node": "^22.17.2",
+    "@types/node": "^22.19.15",
     "@vitest/coverage-v8": "^3.2.4",
-    "automd": "^0.4.0",
+    "automd": "^0.4.3",
     "changelogen": "^0.6.2",
     "eslint": "~9.33.0",
     "eslint-config-unjs": "^0.5.0",
-    "jiti": "^2.5.1",
-    "prettier": "^3.6.2",
-    "typescript": "^5.9.2",
+    "jiti": "^2.6.1",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3",
     "unbuild": "^3.6.1",
     "vitest": "^3.2.4"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org"
   },
-  "packageManager": "pnpm@10.15.0"
+  "packageManager": "pnpm@10.30.3"
 }

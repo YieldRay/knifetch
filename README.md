@@ -9,6 +9,8 @@
 
 knifetch is a customized fetch function with enhanced features.
 
+> For production, prefer [kv](https://github.com/sindresorhus/ky) or [ofetch](https://github.com/unjs/ofetch).
+
 ## Usage
 
 Install package:
