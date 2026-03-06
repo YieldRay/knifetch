@@ -28,13 +28,13 @@ npm install knifetch
 yarn add knifetch
 
 # pnpm
-pnpm install knifetch
+pnpm add knifetch
 
 # bun
 bun install knifetch
 
 # deno
-deno install knifetch
+deno install npm:knifetch
 ```
 
 <!-- /automd -->
@@ -55,7 +55,7 @@ import { knifetch, createKnifetch } from "knifetch";
 const { knifetch, createKnifetch } = require("knifetch");
 ```
 
-**CDN** (Deno, Bun and Browsers)
+**CDN** (Deno and Browsers)
 
 ```js
 import { knifetch, createKnifetch } from "https://esm.sh/knifetch";

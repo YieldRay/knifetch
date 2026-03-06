@@ -41,7 +41,7 @@ export interface RetryOptions<T> {
 export class RetryError extends Error {
   constructor(
     message?: // retry error
-    | "MAX_RETRIES_REACHED"
+      | "MAX_RETRIES_REACHED"
       | "RETRY_IS_ABORTED"
       // attempt error
       | "ATTEMPT_PREDICATE_FAILED"
