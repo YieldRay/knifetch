@@ -45,14 +45,12 @@ export class CookieJar {
         if (domain === "localhost") return true;
         if (cookie.secure && url.protocol !== "https:") return false;
         // check the domain
-        if (
-          !(
-            cookie.domain === domain ||
-            // TODO: "public suffixes" are not handled yet
-            // https://www.rfc-editor.org/rfc/rfc6265.html#section-4.1.2.3
-            cookie.domain!.endsWith(`.${domain}`)
-          )
-        )
+        if (!(
+          cookie.domain === domain ||
+          // TODO: "public suffixes" are not handled yet
+          // https://www.rfc-editor.org/rfc/rfc6265.html#section-4.1.2.3
+          cookie.domain!.endsWith(`.${domain}`)
+        ))
           return false;
 
         // remove expired
