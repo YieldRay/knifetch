@@ -171,6 +171,7 @@ export function createKnifetch<T = Response>(options?: KnifetchOptions<T>) {
               value as string | Blob,
             );
           }
+          init.body = fd;
         }
       }
       if (contentType && !headers.has("content-type")) {
