@@ -119,7 +119,6 @@ export function cookieToString(cookie: Cookie): string {
   }
   if (cookie.path) {
     validatePath(cookie.path);
-    // TODO: path may be normalized
     out.push(`Path=${cookie.path}`);
   }
   if (cookie.expires) {

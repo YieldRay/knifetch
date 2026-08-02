@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createKnifetch, type Fetch } from "../src/core";
 import { CookieJar } from "../src/cookiejar";
+import { HttpError } from "../src/error";
 
 /**
  * Creates a mock fetch that records the Request it receives and returns
@@ -144,6 +145,14 @@ describe("createKnifetch", () => {
       await kf("https://example.com/", { method: "PUT", json: { a: 1 } });
       expect(calls[0].method).toBe("PUT");
     });
+
+    it("uses an explicit body as-is and skips helpers", async () => {
+      const { fetch, calls } = mockFetch();
+      const kf = createKnifetch({ fetch });
+
+      await kf("https://example.com/", { method: "POST", body: "raw-body" });
+      expect(await calls[0].text()).toBe("raw-body");
+    });
   });
 
   describe("query params", () => {
@@ -169,6 +178,14 @@ describe("createKnifetch", () => {
       const url = new URL(calls[0].url);
       expect(url.searchParams.get("existing")).toBe("1");
       expect(url.searchParams.get("added")).toBe("2");
+    });
+
+    it("appends query params when input is a Request", async () => {
+      const { fetch, calls } = mockFetch();
+      const kf = createKnifetch({ fetch });
+
+      await kf(new Request("https://example.com/"), { query: { a: "1" } });
+      expect(new URL(calls[0].url).searchParams.get("a")).toBe("1");
     });
   });
 
@@ -271,47 +288,346 @@ describe("createKnifetch", () => {
     });
   });
 
+  describe("throwHttpErrors", () => {
+    it("rejects with HttpError on non-2xx by default", async () => {
+      const { fetch } = mockFetch(new Response("nope", { status: 404 }));
+      const kf = createKnifetch({ fetch });
+
+      const err = await kf("https://example.com/").catch((error_) => error_);
+      expect(err).toBeInstanceOf(HttpError);
+      expect(err.status).toBe(404);
+      expect(err.response).toBeInstanceOf(Response);
+    });
+
+    it("resolves with the Response when throwHttpErrors is false", async () => {
+      const { fetch } = mockFetch(new Response("nope", { status: 500 }));
+      const kf = createKnifetch({ fetch, throwHttpErrors: false });
+
+      const res = await kf("https://example.com/");
+      expect(res).toBeInstanceOf(Response);
+      expect(res.status).toBe(500);
+    });
+
+    it("does not throw on 2xx", async () => {
+      const { fetch } = mockFetch(new Response(null, { status: 204 }));
+      const kf = createKnifetch({ fetch });
+      await expect(kf("https://example.com/")).resolves.toBeInstanceOf(
+        Response,
+      );
+    });
+  });
+
   describe("retry", () => {
-    it("retries a failing fetch until it succeeds", async () => {
+    // fast, deterministic backoff for tests
+    const fast = { minTimeout: 0, jitter: false } as const;
+
+    it("retry: true uses default HTTP-aware options", async () => {
       let attempts = 0;
       const fetch = vi.fn(async () => {
         attempts++;
-        if (attempts < 2) throw new Error("temporary");
-        return new Response("recovered");
+        return attempts < 2
+          ? new Response("busy", {
+              status: 503,
+              // Retry-After: 0 to avoid the default 1s backoff
+              headers: { "retry-after": "0" },
+            })
+          : new Response("ok");
       }) as unknown as Fetch;
-
       const kf = createKnifetch({ fetch });
-      const res = await kf("https://example.com/", { retry: 3 });
 
+      const res = await kf("https://example.com/", { retry: true });
+      expect((res as Response).ok).toBe(true);
       expect(attempts).toBe(2);
-      expect(await res.text()).toBe("recovered");
     });
 
     it("does not retry when retry is falsy", async () => {
-      const fetch = vi.fn(async () => {
-        throw new Error("fail");
-      }) as unknown as Fetch;
+      const { fetch } = mockFetch(new Response("x", { status: 500 }));
       const kf = createKnifetch({ fetch });
 
-      await expect(kf("https://example.com/")).rejects.toThrowError("fail");
+      await expect(kf("https://example.com/")).rejects.toBeInstanceOf(
+        HttpError,
+      );
       expect(fetch).toHaveBeenCalledTimes(1);
     });
 
-    it("accepts an options object for retry", async () => {
+    it("retries a retryable status code until success", async () => {
       let attempts = 0;
       const fetch = vi.fn(async () => {
         attempts++;
-        if (attempts < 3) throw new Error("temporary");
-        return new Response("ok");
+        return attempts < 3
+          ? new Response("busy", { status: 503 })
+          : new Response("ok", { status: 200 });
       }) as unknown as Fetch;
 
       const kf = createKnifetch({ fetch });
       const res = await kf("https://example.com/", {
-        retry: { maxTries: 5, delay: 0 },
+        retry: { retries: 5, ...fast },
       });
 
       expect(attempts).toBe(3);
-      expect(await res.text()).toBe("ok");
+      expect((res as Response).status).toBe(200);
+    });
+
+    it("does NOT retry a non-retryable status code (404)", async () => {
+      const { fetch } = mockFetch(new Response("nf", { status: 404 }));
+      const kf = createKnifetch({ fetch });
+
+      await expect(
+        kf("https://example.com/", { retry: { retries: 3, ...fast } }),
+      ).rejects.toBeInstanceOf(HttpError);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("does NOT retry POST by default (non-idempotent)", async () => {
+      const { fetch } = mockFetch(new Response("busy", { status: 503 }));
+      const kf = createKnifetch({ fetch });
+
+      await expect(
+        kf("https://example.com/", {
+          method: "POST",
+          json: { a: 1 },
+          retry: { retries: 3, ...fast },
+        }),
+      ).rejects.toBeInstanceOf(HttpError);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries POST when explicitly allowed via methods", async () => {
+      let attempts = 0;
+      const fetch = vi.fn(async () => {
+        attempts++;
+        return attempts < 2
+          ? new Response("busy", { status: 503 })
+          : new Response("ok");
+      }) as unknown as Fetch;
+      const kf = createKnifetch({ fetch });
+
+      const res = await kf("https://example.com/", {
+        method: "POST",
+        retry: { retries: 3, methods: ["POST"], ...fast },
+      });
+      expect(attempts).toBe(2);
+      expect((res as Response).ok).toBe(true);
+    });
+
+    it("retries GET (idempotent) by default", async () => {
+      let attempts = 0;
+      const fetch = vi.fn(async () => {
+        attempts++;
+        return attempts < 2
+          ? new Response("busy", { status: 502 })
+          : new Response("ok");
+      }) as unknown as Fetch;
+      const kf = createKnifetch({ fetch });
+
+      await kf("https://example.com/", { retry: { retries: 3, ...fast } });
+      expect(attempts).toBe(2);
+    });
+
+    it("respects a custom statusCodes list", async () => {
+      const { fetch } = mockFetch(new Response("teapot", { status: 418 }));
+      const kf = createKnifetch({ fetch });
+
+      // 418 is not retryable by default -> fails after 1
+      await expect(
+        kf("https://example.com/a", { retry: { retries: 2, ...fast } }),
+      ).rejects.toBeInstanceOf(HttpError);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries network errors (TypeError from fetch)", async () => {
+      let attempts = 0;
+      const fetch = vi.fn(async () => {
+        attempts++;
+        if (attempts < 2) {
+          throw new TypeError("Failed to fetch");
+        }
+        return new Response("ok");
+      }) as unknown as Fetch;
+      const kf = createKnifetch({ fetch });
+
+      await kf("https://example.com/", { retry: { retries: 3, ...fast } });
+      expect(attempts).toBe(2);
+    });
+
+    it("does NOT retry a non-network thrown error", async () => {
+      const fetch = vi.fn(async () => {
+        throw new Error("boom");
+      }) as unknown as Fetch;
+      const kf = createKnifetch({ fetch });
+
+      await expect(
+        kf("https://example.com/", { retry: { retries: 3, ...fast } }),
+      ).rejects.toThrowError("boom");
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("accepts a number shorthand for retries", async () => {
+      // The number form uses the default backoff; a `Retry-After: 0` header
+      // makes each retry fire immediately so the test stays fast.
+      const { fetch } = mockFetch(
+        new Response("busy", {
+          status: 503,
+          headers: { "retry-after": "0" },
+        }),
+      );
+      const kf = createKnifetch({ fetch });
+
+      // retries: 2 => 3 attempts.
+      await expect(
+        kf("https://example.com/", { retry: 2 }),
+      ).rejects.toBeInstanceOf(HttpError);
+      expect(fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("honors Retry-After (seconds) via calculateDelay", async () => {
+      let attempts = 0;
+      const delays: number[] = [];
+      const start = Date.now();
+      const fetch = vi.fn(async () => {
+        if (attempts > 0) delays.push(Date.now() - start);
+        attempts++;
+        return attempts < 2
+          ? new Response("slow", {
+              status: 429,
+              headers: { "retry-after": "0" },
+            })
+          : new Response("ok");
+      }) as unknown as Fetch;
+      const kf = createKnifetch({ fetch });
+
+      const res = await kf("https://example.com/", {
+        retry: { retries: 3, jitter: false, minTimeout: 10_000 },
+      });
+      // Retry-After: 0 should override the 10s backoff -> fast retry
+      expect((res as Response).ok).toBe(true);
+      expect(delays[0]).toBeLessThan(1000);
+    });
+
+    it("honors Retry-After given as an HTTP-date", async () => {
+      let attempts = 0;
+      const fetch = vi.fn(async () => {
+        attempts++;
+        return attempts < 2
+          ? new Response("slow", {
+              status: 503,
+              // a date in the past -> delay clamps to 0
+              headers: { "retry-after": new Date(0).toUTCString() },
+            })
+          : new Response("ok");
+      }) as unknown as Fetch;
+      const kf = createKnifetch({ fetch });
+
+      const res = await kf("https://example.com/", {
+        retry: { retries: 3, jitter: false, minTimeout: 10_000 },
+      });
+      expect((res as Response).ok).toBe(true);
+      expect(attempts).toBe(2);
+    });
+
+    it("falls back to backoff when Retry-After is unparseable", async () => {
+      let attempts = 0;
+      const fetch = vi.fn(async () => {
+        attempts++;
+        return attempts < 2
+          ? new Response("slow", {
+              status: 503,
+              headers: { "retry-after": "not-a-date" },
+            })
+          : new Response("ok");
+      }) as unknown as Fetch;
+      const kf = createKnifetch({ fetch });
+
+      const res = await kf("https://example.com/", {
+        retry: { retries: 3, minTimeout: 0, jitter: false },
+      });
+      expect((res as Response).ok).toBe(true);
+      expect(attempts).toBe(2);
+    });
+
+    it("forwards the user's signal to abort the whole retry", async () => {
+      const controller = new AbortController();
+      const fetch = vi.fn(async () => {
+        controller.abort(new Error("user cancelled"));
+        return new Response("busy", { status: 503 });
+      }) as unknown as Fetch;
+      const kf = createKnifetch({ fetch });
+
+      await expect(
+        kf("https://example.com/", {
+          signal: controller.signal,
+          retry: { retries: 5, minTimeout: 50, jitter: false },
+        }),
+      ).rejects.toThrowError("user cancelled");
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("re-sends the request body across retries (clone)", async () => {
+      const bodies: string[] = [];
+      let attempts = 0;
+      const fetch = vi.fn(async (req: Request) => {
+        bodies.push(await req.text());
+        attempts++;
+        return attempts < 2
+          ? new Response("busy", { status: 503 })
+          : new Response("ok");
+      }) as unknown as Fetch;
+      const kf = createKnifetch({ fetch });
+
+      await kf("https://example.com/", {
+        method: "PUT",
+        json: { hello: "world" },
+        retry: { retries: 3, ...fast },
+      });
+
+      expect(bodies).toHaveLength(2);
+      expect(bodies[0]).toBe(JSON.stringify({ hello: "world" }));
+      expect(bodies[1]).toBe(bodies[0]);
+    });
+
+    it("aborts the in-flight fetch on per-attempt timeout", async () => {
+      let sawAbort = false;
+      const fetch = vi.fn(
+        (req: Request) =>
+          new Promise<Response>((resolve, reject) => {
+            req.signal.addEventListener("abort", () => {
+              sawAbort = true;
+              reject(req.signal.reason);
+            });
+            // never resolves on its own within the timeout
+            setTimeout(() => resolve(new Response("late")), 1000);
+          }),
+      ) as unknown as Fetch;
+      const kf = createKnifetch({ fetch });
+
+      await expect(
+        kf("https://example.com/", {
+          retry: { retries: 0, timeout: 20, ...fast },
+        }),
+      ).rejects.toBeTruthy();
+      expect(sawAbort).toBe(true);
+    });
+
+    it("supports a custom shouldRetry predicate", async () => {
+      let attempts = 0;
+      const fetch = vi.fn(async () => {
+        attempts++;
+        return new Response("nf", { status: 404 });
+      }) as unknown as Fetch;
+      const kf = createKnifetch({ fetch });
+
+      // normally 404 isn't retried; custom predicate forces it
+      await expect(
+        kf("https://example.com/", {
+          retry: {
+            retries: 2,
+            ...fast,
+            shouldRetry: ({ error }) =>
+              error instanceof HttpError && error.status === 404,
+          },
+        }),
+      ).rejects.toBeInstanceOf(HttpError);
+      expect(attempts).toBe(3);
     });
   });
 
@@ -345,6 +661,32 @@ describe("createKnifetch", () => {
 
       await kf("https://example.com/", { headers: { cookie: "manual=1" } });
       expect(calls[0].headers.get("cookie")).toBe("manual=1");
+    });
+
+    it("stores Set-Cookie from a response and sends it on the next request", async () => {
+      const jar = new CookieJar();
+      let call = 0;
+      const fetch = vi.fn(async () => {
+        call++;
+        if (call === 1) {
+          const headers = new Headers({ "set-cookie": "session=xyz; Path=/" });
+          const res = new Response(null, { headers });
+          Object.defineProperty(res, "url", {
+            value: "https://example.com/login",
+          });
+          return res;
+        }
+        const res = new Response("ok");
+        Object.defineProperty(res, "url", { value: "https://example.com/me" });
+        return res;
+      }) as unknown as Fetch;
+
+      const kf = createKnifetch({ fetch, cookieJar: jar });
+      await kf("https://example.com/login");
+      await kf("https://example.com/me");
+
+      const secondRequest = fetch.mock.calls[1][0] as Request;
+      expect(secondRequest.headers.get("cookie")).toBe("session=xyz");
     });
   });
 });

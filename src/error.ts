@@ -45,9 +45,18 @@ export class HttpError extends Error {
     const status = `${response.status} ${response.statusText}`.trim();
     const reason = status ? `status code ${status}` : "an unknown error";
     super(`Request failed with ${reason}: ${response.url}`);
-    // @ts-ignore
-    // eslint-disable-next-line unicorn/no-useless-error-capture-stack-trace
-    Error.captureStackTrace?.(this, this.constructor);
+    // V8-only: produce a cleaner stack trace when available.
+    const ErrorCtor = Error as {
+      captureStackTrace?(target: object, constructorOpt?: unknown): void;
+    };
+    ErrorCtor.captureStackTrace?.(this, HttpError);
     this.response = response;
+  }
+
+  /**
+   * The HTTP status code of the failing response.
+   */
+  get status(): number {
+    return this.response.status;
   }
 }
