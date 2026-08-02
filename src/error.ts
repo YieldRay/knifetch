@@ -46,6 +46,7 @@ export class HttpError extends Error {
     const reason = status ? `status code ${status}` : "an unknown error";
     super(`Request failed with ${reason}: ${response.url}`);
     // @ts-ignore
+    // eslint-disable-next-line unicorn/no-useless-error-capture-stack-trace
     Error.captureStackTrace?.(this, this.constructor);
     this.response = response;
   }

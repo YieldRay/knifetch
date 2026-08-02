@@ -1,6 +1,3 @@
-/* eslint-disable unicorn/no-null */
-/* eslint-disable unicorn/prefer-code-point */
-
 // Adopted from Deno's @std/http. MIT LICENSE
 // https://jsr.io/@std/http
 // This implementation may not handle some edge case of the spec
